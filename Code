@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "kernelspec": {
+      "language": "python",
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python",
+      "version": "3.10.13",
+      "mimetype": "text/x-python",
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "pygments_lexer": "ipython3",
+      "nbconvert_exporter": "python",
+      "file_extension": ".py"
+    },
+    "kaggle": {
+      "accelerator": "none",
+      "dataSources": [
+        {
+          "sourceId": 783630,
+          "sourceType": "datasetVersion",
+          "datasetId": 311962
+        },
+        {
+          "sourceId": 8645987,
+          "sourceType": "datasetVersion",
+          "datasetId": 5178344
+        }
+      ],
+      "dockerImageVersionId": 30732,
+      "isInternetEnabled": false,
+      "language": "python",
+      "sourceType": "notebook",
+      "isGpuEnabled": false
+    },
+    "colab": {
+      "provenance": []
+    }
+  },
+  "nbformat_minor": 0,
+  "nbformat": 4,
+  "cells": [
+    {
+      "source": [
+        "\n",
+        "# IMPORTANT: RUN THIS CELL IN ORDER TO IMPORT YOUR KAGGLE DATA SOURCES\n",
+        "# TO THE CORRECT LOCATION (/kaggle/input) IN YOUR NOTEBOOK,\n",
+        "# THEN FEEL FREE TO DELETE THIS CELL.\n",
+        "# NOTE: THIS NOTEBOOK ENVIRONMENT DIFFERS FROM KAGGLE'S PYTHON\n",
+        "# ENVIRONMENT SO THERE MAY BE MISSING LIBRARIES USED BY YOUR\n",
+        "# NOTEBOOK.\n",
+        "\n",
+        "import os\n",
+        "import sys\n",
+        "from tempfile import NamedTemporaryFile\n",
+        "from urllib.request import urlopen\n",
+        "from urllib.parse import unquote, urlparse\n",
+        "from urllib.error import HTTPError\n",
+        "from zipfile import ZipFile\n",
+        "import tarfile\n",
+        "import shutil\n",
+        "\n",
+        "CHUNK_SIZE = 40960\n",
+        "DATA_SOURCE_MAPPING = 'food-com-recipes-and-user-interactions:https%3A%2F%2Fstorage.googleapis.com%2Fkaggle-data-sets%2F311962%2F783630%2Fbundle%2Farchive.zip%3FX-Goog-Algorithm%3DGOOG4-RSA-SHA256%26X-Goog-Credential%3Dgcp-kaggle-com%2540kaggle-161607.iam.gserviceaccount.com%252F20240609%252Fauto%252Fstorage%252Fgoog4_request%26X-Goog-Date%3D20240609T145850Z%26X-Goog-Expires%3D259200%26X-Goog-SignedHeaders%3Dhost%26X-Goog-Signature%3D0fd3da1559195238c9420fe1f731fb11341a5f775f69bcf75ea3cfab2fd830fa25bd5bb74aa68b392a8858178ed69add22ec350e575c889f3fada45bb5a2da752848f5ca7c0c49f356935cf733592cf057b44d4b38721e23e7c2e50e2d1566830b8ba9db699f141a1ceafa99a196789deeba0628e7488b9ceb3f4f00ca1c1768dd6ada2240cbaeb7f8d8572c3a7636cd71c2261358ba6ec9b758ab4d79124a873ff90507bd217baebf774f7fbd8283bfc738a4fce6c51260d3aa9e0e4bd6cb4c11185fc707a6236c4abd3b367d50f4b2c9ca2cd53fcc325485e7e40b90aca48a8ec3c23f65d5e2f99224ba2e84bd62abfef5330a5a746129eb7465b23829d303,final-data:https%3A%2F%2Fstorage.googleapis.com%2Fkaggle-data-sets%2F5178344%2F8645987%2Fbundle%2Farchive.zip%3FX-Goog-Algorithm%3DGOOG4-RSA-SHA256%26X-Goog-Credential%3Dgcp-kaggle-com%2540kaggle-161607.iam.gserviceaccount.com%252F20240609%252Fauto%252Fstorage%252Fgoog4_request%26X-Goog-Date%3D20240609T145850Z%26X-Goog-Expires%3D259200%26X-Goog-SignedHeaders%3Dhost%26X-Goog-Signature%3D9bc7022f283c6dfb3c0ac03a9d84f0f4abffbc387d3a182fac43f914f9b43b7ad86ddcdb04e362d6b45fd0bbe8555d9d6fc2000b4995c6dacb5e109a95cea790f1d5718ad03a3208b8d4c73807d66b992317dc05a62e733ff043a76fea556cd8612a12f07e9e6491817b84ed845e2ce371ad76449c766f117aea8670dde4b00f8344041fb28c35fd98cd64e47aea46f2cc2daada092537cd530cc2db678766c2d885c3a6df25befa9f6d1b8988ac106c3c7b8f4e17906519e8d69442f89b6c4b21e3452cfadd76353e8c46bfa4e428f7cc4df815f1a9f106ad0823e52c32585b5ea0a309728fff5c834103c96cf180a2c960c9016fbbd351d6872ebda069b6d1'\n",
+        "\n",
+        "KAGGLE_INPUT_PATH='/kaggle/input'\n",
+        "KAGGLE_WORKING_PATH='/kaggle/working'\n",
+        "KAGGLE_SYMLINK='kaggle'\n",
+        "\n",
+        "!umount /kaggle/input/ 2> /dev/null\n",
+        "shutil.rmtree('/kaggle/input', ignore_errors=True)\n",
+        "os.makedirs(KAGGLE_INPUT_PATH, 0o777, exist_ok=True)\n",
+        "os.makedirs(KAGGLE_WORKING_PATH, 0o777, exist_ok=True)\n",
+        "\n",
+        "try:\n",
+        "  os.symlink(KAGGLE_INPUT_PATH, os.path.join(\"..\", 'input'), target_is_directory=True)\n",
+        "except FileExistsError:\n",
+        "  pass\n",
+        "try:\n",
+        "  os.symlink(KAGGLE_WORKING_PATH, os.path.join(\"..\", 'working'), target_is_directory=True)\n",
+        "except FileExistsError:\n",
+        "  pass\n",
+        "\n",
+        "for data_source_mapping in DATA_SOURCE_MAPPING.split(','):\n",
+        "    directory, download_url_encoded = data_source_mapping.split(':')\n",
+        "    download_url = unquote(download_url_encoded)\n",
+        "    filename = urlparse(download_url).path\n",
+        "    destination_path = os.path.join(KAGGLE_INPUT_PATH, directory)\n",
+        "    try:\n",
+        "        with urlopen(download_url) as fileres, NamedTemporaryFile() as tfile:\n",
+        "            total_length = fileres.headers['content-length']\n",
+        "            print(f'Downloading {directory}, {total_length} bytes compressed')\n",
+        "            dl = 0\n",
+        "            data = fileres.read(CHUNK_SIZE)\n",
+        "            while len(data) > 0:\n",
+        "                dl += len(data)\n",
+        "                tfile.write(data)\n",
+        "                done = int(50 * dl / int(total_length))\n",
+        "                sys.stdout.write(f\"\\r[{'=' * done}{' ' * (50-done)}] {dl} bytes downloaded\")\n",
+        "                sys.stdout.flush()\n",
+        "                data = fileres.read(CHUNK_SIZE)\n",
+        "            if filename.endswith('.zip'):\n",
+        "              with ZipFile(tfile) as zfile:\n",
+        "                zfile.extractall(destination_path)\n",
+        "            else:\n",
+        "              with tarfile.open(tfile.name) as tarfile:\n",
+        "                tarfile.extractall(destination_path)\n",
+        "            print(f'\\nDownloaded and uncompressed: {directory}')\n",
+        "    except HTTPError as e:\n",
+        "        print(f'Failed to load (likely expired) {download_url} to path {destination_path}')\n",
+        "        continue\n",
+        "    except OSError as e:\n",
+        "        print(f'Failed to load {download_url} to path {destination_path}')\n",
+        "        continue\n",
+        "\n",
+        "print('Data source import complete.')\n"
+      ],
+      "metadata": {
+        "id": "CfMOVlxfqMwT"
+      },
+      "cell_type": "code",
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n"
+      ],
+      "metadata": {
+        "execution": {
+          "iopub.status.busy": "2024-06-09T10:16:01.833855Z",
+          "iopub.execute_input": "2024-06-09T10:16:01.834269Z",
+          "iopub.status.idle": "2024-06-09T10:16:01.840751Z",
+          "shell.execute_reply.started": "2024-06-09T10:16:01.834236Z",
+          "shell.execute_reply": "2024-06-09T10:16:01.838973Z"
+        },
+        "trusted": true,
+        "id": "1p71PeiLqMwg"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = pd.read_csv(\"/kaggle/input/final-data/final_data.csv\")\n",
+        "df.head()\n"
+      ],
+      "metadata": {
+        "execution": {
+          "iopub.status.busy": "2024-06-09T10:16:04.890842Z",
+          "iopub.execute_input": "2024-06-09T10:16:04.891262Z",
+          "iopub.status.idle": "2024-06-09T10:16:05.462516Z",
+          "shell.execute_reply.started": "2024-06-09T10:16:04.891229Z",
+          "shell.execute_reply": "2024-06-09T10:16:05.461095Z"
+        },
+        "trusted": true,
+        "id": "GUb_d9b7qMwh"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df.info()"
+      ],
+      "metadata": {
+        "execution": {
+          "iopub.status.busy": "2024-06-09T09:23:49.826283Z",
+          "iopub.execute_input": "2024-06-09T09:23:49.826712Z",
+          "iopub.status.idle": "2024-06-09T09:23:49.86413Z",
+          "shell.execute_reply.started": "2024-06-09T09:23:49.826678Z",
+          "shell.execute_reply": "2024-06-09T09:23:49.862486Z"
+        },
+        "trusted": true,
+        "id": "g_P9eUieqMwj"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n",
+        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "from sklearn.metrics.pairwise import linear_kernel\n",
+        "from typing import List\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        "# Preprocessing\n",
+        "df['ingredients'] = df['ingredients'].apply(lambda x: x.lower().strip('\"').strip(\"'\"))\n",
+        "df['name'] = df['name'].apply(lambda x: x.lower())\n",
+        "df['steps'] = df['steps'].apply(lambda x: x.strip('\"').strip(\"'\"))\n",
+        "df['combined_features'] = df['name'] + ' ' + df['ingredients']\n",
+        "\n",
+        "# Feature extraction\n",
+        "tfidf = TfidfVectorizer(stop_words='english')\n",
+        "tfidf_matrix = tfidf.fit_transform(df['combined_features'])\n",
+        "\n",
+        "# Compute similarity matrix\n",
+        "cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)\n",
+        "\n",
+        "# Function to suggest recipes based on user input dish name, ingredients, and preferred cooking time\n",
+        "def suggest_recipes(dish_name, ingredients, max_cooking_time, top_n=5):\n",
+        "    # Create a new user input string based on the dish name and ingredients\n",
+        "    user_input = f\"{dish_name.lower()} {' '.join(ingredients).lower()}\"\n",
+        "    user_input_vec = tfidf.transform([user_input])\n",
+        "    cosine_sim_user = linear_kernel(user_input_vec, tfidf_matrix)\n",
+        "    sim_scores_user = list(enumerate(cosine_sim_user[0]))\n",
+        "    sim_scores_user = sorted(sim_scores_user, key=lambda x: x[1], reverse=True)\n",
+        "\n",
+        "    # Filter recipes based on cooking time\n",
+        "    recipe_indices_user = [i[0] for i in sim_scores_user if df.iloc[i[0]]['minutes'] <= max_cooking_time][:top_n]\n",
+        "    return df.iloc[recipe_indices_user]\n",
+        "\n",
+        "\n",
+        "\n",
+        "# Formatting the output:\n",
+        "def format_output(recipes: pd.DataFrame) -> None:\n",
+        "    \"\"\"\n",
+        "    Format and print the suggested recipes.\n",
+        "\n",
+        "    :param recipes: A DataFrame containing the recipes to format.\n",
+        "    \"\"\"\n",
+        "    for index, row in recipes.iterrows():\n",
+        "        name = row['name'].title()\n",
+        "        ingredients = row['ingredients'].capitalize()\n",
+        "        steps = '. '.join([sentence.capitalize().strip() for sentence in row['steps'].split('. ')])\n",
+        "        minutes = row['minutes']\n",
+        "\n",
+        "        print(f\"Recipe Name: {name}\")\n",
+        "        print(f\"Ingredients: {ingredients}\")\n",
+        "        print(f\"Steps: {steps}\")\n",
+        "        print(f\"Cooking Time: {minutes} minutes\")\n",
+        "        print(\"-\" * 40)\n",
+        "\n",
+        "# Example usage\n",
+        "dish_name = \"Spaghetti Carbonara\"\n",
+        "ingredients = [\"spaghetti\", \"eggs\", \"cheese\", \"bacon\"]\n",
+        "max_cooking_time = 80\n",
+        "suggested_recipes = suggest_recipes(dish_name, ingredients, max_cooking_time)\n",
+        "\n",
+        "# Format and print the output\n",
+        "format_output(suggested_recipes)\n"
+      ],
+      "metadata": {
+        "execution": {
+          "iopub.status.busy": "2024-06-09T10:06:37.458185Z",
+          "iopub.execute_input": "2024-06-09T10:06:37.458733Z",
+          "iopub.status.idle": "2024-06-09T10:07:00.246479Z",
+          "shell.execute_reply.started": "2024-06-09T10:06:37.458693Z",
+          "shell.execute_reply": "2024-06-09T10:07:00.245091Z"
+        },
+        "trusted": true,
+        "id": "-VRoS71mqMwk"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
